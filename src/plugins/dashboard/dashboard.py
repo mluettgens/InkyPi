@@ -209,6 +209,7 @@ class Dashboard(BasePlugin):
         # Calendar display range (defaults)
         start_hour = int(settings.get('calendar_start_hour', 8))
         end_hour = int(settings.get('calendar_end_hour', 18))
+        days = int(settings.get('calendar_days', 1))  # Number of days to show (default: 1 day)
 
 
         authority = f"https://login.microsoftonline.com/{tenant_id}"
