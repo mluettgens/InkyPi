@@ -35,6 +35,12 @@ CLOCK_FACES = [
         "primary_color": "#000000",
         "secondary_color": "#ffffff",
         "icon": "faces/word.png"
+    },
+    {
+        "name": "German Word Clock",
+        "primary_color": "#000000",
+        "secondary_color": "#ffffff",
+        "icon": "faces/german_word.png"
     }
 ]
 
@@ -72,6 +78,8 @@ class Clock(BasePlugin):
                 img = self.draw_divided_clock(dimensions, current_time, primary_color, secondary_color)
             elif clock_face == "Word Clock":
                 img = self.draw_word_clock(dimensions, current_time, primary_color, secondary_color)
+            elif clock_face == "German Word Clock":
+                img = self.draw_german_word_clock(dimensions, current_time, primary_color, secondary_color)
         except Exception as e:
             logger.error(f"Failed to draw clock image: {str(e)}")
             raise RuntimeError("Failed to display clock.")
@@ -209,6 +217,56 @@ class Clock(BasePlugin):
                     fill=secondary_color+(255,)
                     image_draw.text((x_pos+2, y_pos+2), letter, anchor="mm", fill=secondary_color+(80,), font=fnt)
                 
+                image_draw.text((x_pos, y_pos), letter, anchor="mm", fill=fill, font=fnt)
+
+        combined = Image.alpha_composite(bg, canvas)
+        return combined
+
+    def draw_german_word_clock(self, dimensions, time, primary_color=(0,0,0), secondary_color=(255,255,255)):
+        w,h = dimensions
+
+        bg = Image.new("RGBA", dimensions, primary_color+(255,))
+
+        dim = min(w,h)
+
+        font_size = dim*0.05
+        fnt = get_font("Napoli", font_size)
+
+        canvas = Image.new("RGBA", dimensions, (0, 0, 0, 0))
+        image_draw = ImageDraw.Draw(canvas)
+
+        border = [80, 80]
+        if w > h:
+            border[0] += (w-h)/2
+        elif h > w:
+            border[1] += (h-w)/2
+
+        letter_positions = Clock.translate_german_word_grid_positions(time.hour % 12, time.minute)
+
+        letter_grid = [
+            ['E','S',' ','I','S','T',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '],
+            ['Z','E','H','N',' ','F','Ü','N','F',' ',' ','Z','W','A','N','Z','I','G'],
+            ['V','I','E','R','T','E','L',' ',' ',' ',' ','M','I','N','U','T','E','N'],
+            ['V','O','R',' ',' ',' ','N','A','C','H',' ',' ',' ',' ','H','A','L','B'],
+            ['E','I','N',' ',' ','E','I','N','S',' ',' ',' ','S','I','E','B','E','N'],
+            ['Z','W','E','I',' ',' ',' ','D','R','E','I',' ',' ',' ','V','I','E','R'],
+            ['F','Ü','N','F',' ',' ','A','C','H','T',' ',' ',' ','Z','W','Ö','L','F'],
+            ['S','E','C','H','S',' ',' ',' ','Z','E','H','N',' ',' ',' ','E','L','F'],
+            ['N','E','U','N',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','U','H','R'],
+        ]
+
+        canvas_size = min(w,h) - min(border)*2
+        for y, row in enumerate(letter_grid):
+            for x, letter in enumerate(row):
+                if letter == ' ':  # Skip spaces
+                    continue
+                x_pos = x*(canvas_size/(len(row)-1)) + border[0] 
+                y_pos = y*(canvas_size/(len(letter_grid)-1)) + border[1]
+
+                fill=secondary_color+(50,)
+                if [y,x] in letter_positions:
+                    fill=secondary_color+(255,)
+                    image_draw.text((x_pos+2, y_pos+2), letter, anchor="mm", fill=secondary_color+(80,), font=fnt)
                 image_draw.text((x_pos, y_pos), letter, anchor="mm", fill=fill, font=fnt)
 
         combined = Image.alpha_composite(bg, canvas)
@@ -443,5 +501,116 @@ class Clock(BasePlugin):
 
         if (0 <= minute < 3) or (57 < minute <= 60):
             letters.extend([[9,5],[9,6],[9,7],[9,8],[9,9],[9,10]]) # OCLOCK
+
+        return letters
+
+    @staticmethod
+    def translate_german_word_grid_positions(hour, minute):
+
+        # --- Wort-Positionen für die deutsche Wortuhr ---
+        POS_ES = [[0,0],[0,1]]
+        POS_IST = [[0,3],[0,4],[0,5]]
+        POS_ZEHN = [[1,0],[1,1],[1,2],[1,3]]
+        POS_FUENF = [[1,5],[1,6],[1,7],[1,8]]
+        POS_ZWANZIG = [[1,11],[1,12],[1,13],[1,14],[1,15],[1,16],[1,17]]
+        POS_VIERTEL = [[2,0],[2,1],[2,2],[2,3],[2,4],[2,5],[2,6]]
+        POS_VOR = [[3,0],[3,1],[3,2]]
+        POS_NACH = [[3,6],[3,7],[3,8],[3,9]]
+        POS_HALB = [[3,14],[3,15],[3,16],[3,17]]
+        POS_EIN = [[4,0],[4,1],[4,2]]
+        POS_EINS = [[4,5],[4,6],[4,7],[4,8]]
+        POS_SIEBEN = [[4,12],[4,13],[4,14],[4,15],[4,16],[4,17]]
+        POS_ZWEI = [[5,0],[5,1],[5,2],[5,3]]
+        POS_DREI = [[5,7],[5,8],[5,9],[5,10]]
+        POS_VIER = [[5,14],[5,15],[5,16],[5,17]]
+        POS_FUENF_STUNDE = [[6,0],[6,1],[6,2],[6,3]]
+        POS_ACHT = [[6,6],[6,7],[6,8],[6,9],[6,10]]
+        POS_ZWOELF = [[6,13],[6,14],[6,15],[6,16],[6,17]]
+        POS_SECHS = [[7,0],[7,1],[7,2],[7,3],[7,4],[7,5]]
+        POS_ZEHN_STUNDE = [[7,8],[7,9],[7,10],[7,11]]
+        POS_ELF = [[7,15],[7,16],[7,17]]
+        POS_NEUN = [[8,0],[8,1],[8,2],[8,3]]
+        POS_UHR = [[8,15],[8,16],[8,17]]
+
+        letters = POS_ES + POS_IST
+
+        _minute = minute
+        _hour = hour
+
+        # Bestimme ob "vor" oder "nach" und welche Stunde angezeigt wird
+        # Für "FÜNF VOR HALB" (ab Minute 23) muss die Stunde schon auf die nächste springen
+        if minute >= 23:
+            _hour = (hour + 1) % 12
+            if _hour == 0:
+                _hour = 12
+
+        # Minuten-Angaben
+        if 0 <= _minute < 3:
+            letters += POS_UHR
+        elif 3 <= _minute < 8:
+            letters += POS_FUENF
+            letters += POS_NACH
+        elif 8 <= _minute < 13:
+            letters += POS_ZEHN
+            letters += POS_NACH
+        elif 13 <= _minute < 18:
+            letters += POS_VIERTEL
+            letters += POS_NACH
+        elif 18 <= _minute < 23:
+            letters += POS_ZWANZIG
+            letters += POS_NACH
+        elif 23 <= _minute < 28:
+            letters += POS_FUENF
+            letters += POS_VOR
+            letters += POS_HALB
+        elif 28 <= _minute < 33:
+            letters += POS_HALB
+        elif 33 <= _minute < 38:
+            letters += POS_FUENF
+            letters += POS_NACH
+            letters += POS_HALB
+        elif 38 <= _minute < 43:
+            letters += POS_ZWANZIG
+            letters += POS_VOR
+        elif 43 <= _minute < 48:
+            letters += POS_VIERTEL
+            letters += POS_VOR
+        elif 48 <= _minute < 53:
+            letters += POS_ZEHN
+            letters += POS_VOR
+        elif 53 <= _minute < 58:
+            letters += POS_FUENF
+            letters += POS_VOR
+        elif 58 <= _minute:
+            letters += POS_UHR
+
+        # Stunden
+        if _hour == 1:
+            if minute < 5:
+                letters += POS_EIN
+            else:
+                letters += POS_EINS
+        elif _hour == 2:
+            letters += POS_ZWEI
+        elif _hour == 3:
+            letters += POS_DREI
+        elif _hour == 4:
+            letters += POS_VIER
+        elif _hour == 5:
+            letters += POS_FUENF_STUNDE
+        elif _hour == 6:
+            letters += POS_SECHS
+        elif _hour == 7:
+            letters += POS_SIEBEN
+        elif _hour == 8:
+            letters += POS_ACHT
+        elif _hour == 9:
+            letters += POS_NEUN
+        elif _hour == 10:
+            letters += POS_ZEHN_STUNDE
+        elif _hour == 11:
+            letters += POS_ELF
+        elif _hour == 12 or _hour == 0:
+            letters += POS_ZWOELF
 
         return letters
