@@ -1,0 +1,115 @@
+<div class="form-group">
+    <label for="news_count" class="form-label">Number of News Items:</label>
+    <input type="number" id="news_count" name="news_count" class="form-input" min="1" max="10" value="4" />
+</div>
+<div class="form-group">
+    <label for="news_feed" class="form-label">News Feed:</label>
+    <select id="news_feed" name="news_feed" class="form-input">
+        <option value="tagesschau">Tagesschau</option>
+        <option value="golem">Golem</option>
+    </select>
+</div>
+<div class="form-group">
+    <label class="form-label">Location:</label>
+    <div class="form-group">
+        <span>Latitude</span>
+        <input readonly type="text" id="latitude" name="latitude" class="form-input" />
+    </div>
+    <div class="form-group">
+        <span>Longitude</span>
+        <input readonly type="text" id="longitude" name="longitude" class="form-input" />
+    </div>
+    <button type="button" id="openMap" class="action-button compact">Select Location</button>
+</div>
+
+<!-- Kalender-Zeitraum -->
+<div class="form-group">
+    <label class="form-label">Calendar display range (hours):</label>
+    <div style="display:flex; gap:8px; align-items:center;">
+        <label for="calendar_start_hour" style="min-width:90px;">Start Hour</label>
+        <input type="number" id="calendar_start_hour" name="calendar_start_hour" class="form-input" min="0" max="23" value="8" />
+        <label for="calendar_end_hour" style="min-width:90px; margin-left:12px;">End Hour</label>
+        <input type="number" id="calendar_end_hour" name="calendar_end_hour" class="form-input" min="1" max="24" value="18" />
+    </div>
+    <div class="form-help">Gib die Stunden (0–23) an, die im Tageskalender angezeigt werden sollen.</div>
+</div>
+
+<!-- Calendar day offset override -->
+<div class="form-group">
+    <label for="calendar_day_offset" class="form-label">Kalender-Tag (Automatisch oder erzwingen)</label>
+    <select id="calendar_day_offset" name="calendar_day_offset" class="form-input">
+        <option value="auto">Automatisch (Heute / Morgen nach 18:00)</option>
+        <option value="0">Heute</option>
+        <option value="1">Morgen</option>
+    </select>
+    <div class="form-help">Wähle 'Automatisch' um standardmäßig vor 18:00 heute, ab 18:00 morgen zu verwenden.</div>
+</div>
+
+<div id="mapModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeModal('mapModal')">×</span>
+        <h2 id="modalTitle">Select Location</h2>
+        <div class="separator"></div>
+        <div id="map" style="width: 100%; height: 200px; margin: 10px 0px;"></div>
+        <button id="closeMap" class="action-button">Save</button>
+    </div>
+</div>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const OSM_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        const $latitude = document.querySelector('#latitude');
+        const $longitude = document.querySelector('#longitude');
+        const $openMap = document.querySelector('#openMap');
+        const $mapModal = document.querySelector('#mapModal');
+        const $closeMap = document.querySelector('#closeMap');
+
+        let latitude = +$latitude.value;
+        let longitude = +$longitude.value;
+        let zoom = latitude && longitude ? 4.5 : 2.5;
+        let map, marker;
+
+        $openMap.addEventListener('click', () => {
+            openModal('mapModal')
+            setTimeout(() => {
+                if (!map) {
+                    map = L.map('map').setView([latitude, longitude], zoom);
+                    L.tileLayer(OSM_TILE_URL).addTo(map);
+                    marker = L.marker([latitude, longitude], { draggable: true }).addTo(map);
+                    map.on('click', event => {
+                        marker.setLatLng(event.latlng);
+                    });
+                }
+            }, 100);
+        });
+
+        $closeMap.addEventListener('click', () => {
+            const position = marker.getLatLng().wrap();
+            $latitude.value = position.lat;
+            $longitude.value = position.lng;
+            closeModal('mapModal');
+        });
+
+        if (loadPluginSettings) {
+
+            console.log(pluginSettings);
+
+            document.getElementById('latitude').value = pluginSettings.latitude;
+            document.getElementById('longitude').value = pluginSettings.longitude;
+
+            document.getElementById('news_count').value = pluginSettings.news_count;
+            document.getElementById('news_feed').value = pluginSettings.news_feed;
+
+            if (typeof pluginSettings.calendar_start_hour !== 'undefined') {
+                document.getElementById('calendar_start_hour').value = pluginSettings.calendar_start_hour;
+            }
+            if (typeof pluginSettings.calendar_end_hour !== 'undefined') {
+                document.getElementById('calendar_end_hour').value = pluginSettings.calendar_end_hour;
+            }
+            if (typeof pluginSettings.calendar_day_offset !== 'undefined') {
+                document.getElementById('calendar_day_offset').value = pluginSettings.calendar_day_offset;
+            }
+        }
+    });
+</script>

@@ -1,0 +1,421 @@
+/* 1. CSS-Reset und Basis */
+* {
+    box-sizing: border-box;
+}
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    width: 100vw;
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    overflow: hidden;
+    font-size: x-large;
+}
+
+/* 2. Layout: Grid, Panels, Container */
+.dashboard {
+    display: grid;
+    grid-template-rows: 10% 1fr 10%;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    width: 100vw;
+}
+.header, .footer {
+    grid-column: 1 / 3;
+    display: flex;
+    background: #34495e;
+    color: white;
+}
+.header {
+    font-size: 2.2em;            /* match .weather-temp size */
+    font-weight: bold;           /* match .weather-temp weight */
+    align-items: center;
+    justify-content: space-between; /* left/right alignment */
+    padding: 0 1.25em;           /* horizontal breathing room */
+}
+.footer {
+    align-items: center;
+    justify-content: end;
+}
+.refresh-time {
+    margin-right: 2em;
+}
+.left-panel, .right-panel {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* 3. Widgets allgemein */
+.widget {
+    /*background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid #ddd;*/
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Utility: make a widget take remaining vertical space in its panel */
+.widget--fill {
+    flex: 1 1 auto;
+    min-height: 0; /* allow children with 100% height to shrink/grow */
+}
+
+/* Ensure widget-content inside a fill-widget becomes a flex container so children can stretch */
+.widget--fill > .widget-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0; /* remove padding so inner calendar can use full height */
+    overflow: hidden; /* ensure child flex items can take full height */
+}
+.widget-header {
+    background: #2c3e50;
+    color: white;
+    padding: 12px 15px;
+    font-weight: bold;
+    font-size: 1.1em;
+    border-bottom: 4px solid #e6262f;
+}
+.widget-content {
+    padding: 0.5em;
+    flex: 1 1 auto;
+    overflow-y: auto;
+}
+
+.widget-content h3 {
+    margin: 0.25em 0;
+    font-size: 1.5em;
+    font-weight: bold;
+    hyphens: auto;
+    word-wrap: break-word;
+}
+
+.widget-content li {    
+    padding-bottom: 0.5em;
+}
+/* 4. Widget-spezifisch */
+
+/* Losung */
+/*.losung-body {
+    font-size: 1.1em;
+    margin: 0.5em 0;
+    word-break: break-word;
+}*/
+.losung-verse {
+    font-size: 0.9em;
+    text-align: right;
+    font-style: italic;
+}
+
+/* Kalender */
+.kalender-list, .news-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.kalender-item, .news-item {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+}
+.kalender-title, .news-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+.kalender-datetime, .news-description {
+    color: black;
+    margin-bottom: 2px;
+    word-break: break-word;
+    font-size: 1.2em;
+}
+.kalender-location {
+    font-size: 0.85em;
+    color: black;
+}
+
+/* News */
+.news-content-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+.news-image {
+    float: left;
+    margin-right: 1em;
+    margin-bottom: 0.5em;
+    /*width: 200px;*/
+    height: auto;
+    border-radius: 0.25em;
+    background: #eee;
+}
+
+/* Wetter */
+.weather-widget {
+    position: absolute;
+    left: 70px;
+    bottom: 18px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.weather-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 32px;
+}
+.weather-icon {
+    width: 200px;
+    height: 200px;
+    object-fit: contain;
+}
+.weather-temp {
+    font-size: 2.2em;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 5px;
+}
+
+/* --- Ein-Tages-Kalender (embedded) --- */
+.day-calendar {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    /* Make it use full height of widget-content */
+    height: 100%;
+    flex: 1 1 auto;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5em; /* visual padding moved here so it doesn't affect parent sizing */
+}
+.day-calendar .time-column {
+    width: 64px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--line, #e6e9ef);
+    background: #fbfcfe;
+}
+.day-calendar .time-labels { min-height: 0; display:grid; grid-auto-flow:row; grid-template-rows: repeat(var(--slots,6), 1fr); width:100%; flex:1; }
+.day-calendar .time-labels, .day-calendar .day-body { min-height: 0; }
+.day-calendar .time-header {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight:600;
+    border-bottom:1px solid rgba(0,0,0,0.04);
+}
+.dc-time-label {
+    display: flex;
+    align-items: flex-start;    /* vertical: top */
+    justify-content: flex-end;  /* horizontal: right */
+    font-size: 0.95em;
+    color: #333;
+    border-bottom: 1px solid rgba(0,0,0,0.03);
+    padding-top: 4px;           /* small gap from top edge */
+    padding-right: 6px;         /* space from right edge */
+    box-sizing: border-box;
+}
+.day-calendar .day-column {
+    display:flex;
+    flex-direction:column;
+    flex:1;
+    min-width:0;
+
+    /* shared font-size for day header badges and event titles */
+    --day-title-fs: 1em;
+}
+
+/* ensure the header title uses the variable (optional tweak) */
+.day-calendar .day-header .day-title-text {
+    font-size: var(--day-title-fs);
+}
+
+/* use same size for all-day badges and timed events */
+.dc-all-day-badge {
+  font-size: var(--day-title-fs);
+  /* ...existing rules... */
+}
+.dc-event {
+    font-size: var(--day-title-fs);
+    /* ...existing rules... */
+}
+
+.day-calendar .day-header {
+    height:36px;
+    display:flex;
+    align-items:center;
+    padding:0 8px;
+    font-weight:600;
+    border-bottom:1px solid rgba(0,0,0,0.06);
+    justify-content: space-between; /* added so title and all-day badges sit inline */
+    gap: 8px;
+}
+.day-calendar .day-body {
+    position:relative;
+    display:grid;
+    grid-auto-flow:row;
+    grid-template-rows: repeat(var(--slots,6), 1fr);
+    flex:1;
+    overflow:hidden;
+}
+.day-calendar .day-body { min-height: 0; }
+.dc-hour-slot {
+    border-bottom:1px dashed rgba(0,0,0,0.04);
+    padding:4px 6px;
+    box-sizing:border-box;
+}
+.dc-event {
+    position:absolute;
+    left:0;
+    width:100%;
+    background: #34495e; /* changed to match footer background */
+    color:white;
+    border-radius:6px;
+    padding:6px 8px;
+    font-size:0.9em;
+    box-shadow:0 1px 0 rgba(0,0,0,0.06);
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+}
+
+/* All-day container moved from inline <style> into CSS file */
+#dayCalendar .dc-all-day-container {
+  display: flex;
+  gap: 6px;
+  padding-left: 8px;
+  padding-right: 4px;
+  min-height: 36px;
+  align-items: center;
+  overflow: hidden;
+  background: transparent;
+}
+.dc-all-day-badge {
+  display: inline-block;
+  background: #34495e; /* changed to match footer background */
+  color: #fff;
+  font-size: inherit;      /* use same size as the surrounding "Heute" text */
+  line-height: 1;         /* better vertical alignment with header */
+  padding: 3px 8px;       /* slight vertical padding to fit the 36px header */
+  border-radius: 10px;
+  white-space: nowrap;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+/* debug overlay styles removed */
+
+/* Small screens: reduce sizes */
+@media (max-width:520px) {
+    .day-calendar .time-column { width:48px; }
+    .day-calendar .time-header, .day-calendar .day-header { height:32px; }
+}
+
+/* 5. Utility-Klassen (optional) */
+/* .hidden { display: none !important; } */
+
+/* zusätzlicher Abstand unter Nachrichten-Einträgen (nur im rechten Panel / Nachrichten-Widget) */
+.right-panel .widget .widget-content > ul > li {
+    margin-bottom: 1.1em; /* erhöht den Abstand nach unten */
+    padding-bottom: 0;    /* optional: entferne zusätzliches padding falls doppelt */
+}
+.right-panel .widget .widget-content > ul > li:last-child {
+    margin-bottom: 0; /* kein extra Abstand beim letzten Eintrag */
+}
+
+/* ensure right-panel widget content can use flex layout so children can grow */
+.right-panel .widget .widget-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* allow children to shrink in flex layout */
+    padding: 0.5em;
+}
+
+/* news list uses remaining vertical space and becomes scrollable if needed */
+.news-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1 1 auto;     /* take remaining height of widget-content */
+    min-height: 0;      /* important for proper scrolling inside flex children */
+    overflow-y: auto;
+    padding: 6px 4px 20px 4px; /* add extra bottom padding so last item has space from container bottom */
+}
+
+/* individual news item: image left, text right */
+.news-item {
+    /* block layout so text can flow around the floated image */
+    display: block;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(0,0,0,0.02);
+    position: relative;
+}
+/* clearfix so the container wraps floated image */
+.news-item::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* image floats left so text flows around it */
+.news-image {
+    float: left;
+    width: 240px;
+    height: 160px;
+    object-fit: cover;
+    border-radius: 6px;
+    margin: 0 12px 8px 0; /* right + bottom spacing so following text doesn't stick to edges */
+    flex: none;
+}
+
+/* text block flows next to floated image */
+.news-body {
+    display: block;
+    overflow: visible; /* allow wrapping around the float */
+    min-width: 0;
+}
+
+/* smaller title, aligned to top of the image */
+.news-title {
+    margin: 0;
+    margin-top: 0;
+    font-size: 1.0em; /* slightly smaller */
+    line-height: 1.2;
+    font-weight: 700;
+}
+
+/* small gap before the description */
+.news-description {
+    margin-top: 6px;
+    color: #222;
+    font-size: 0.95em;
+    line-height: 1.2;
+    /* show full description instead of clipping */
+    max-height: none;
+    overflow: visible;
+    white-space: normal;
+    word-break: break-word;
+}
+
+/* when there are few items, avoid extra big bottom gap */
+.news-empty {
+    padding: 10px;
+    color: #333;
+}
+
+/* remove older list-specific spacing rules (they targeted ul>li) */
+

@@ -1,0 +1,317 @@
+{% extends "plugin.html" %}
+{% block content %}
+
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
+
+<div class="dashboard">
+    <div class="header">
+      <span class="header-left">{{ info.greeting }}</span>
+      <span class="header-right">{{ info.date }}</span>
+    </div>
+
+    <div class="left-panel">
+      <div class="widget">
+        <div class="widget-header">📖 Losung</div>
+        <div class="widget-content">
+          <h3>{{ losung.Losungstext|safe }}</h3>
+          <div class="losung-verse">{{ losung.Losungsvers }}</div>
+        </div>
+      </div>
+  <div class="widget widget--fill">
+        <div class="widget-header">📅 Kalender</div>
+        <div class="widget-content">
+          <!-- Ein-Tages-Kalender (stunden 7-13) -->
+          <div class="day-calendar" id="dayCalendar" aria-label="Tagesübersicht">
+            <div class="time-column" aria-hidden="true">
+              <div class="time-header">Uhr</div>
+              <div class="time-labels" id="dc-timeLabels"></div>
+            </div>
+            <div class="day-column">
+              <div class="day-header" id="dc-dayTitle">
+                <span class="day-title-text">{{ calendar.day_label | default('Heute') }}</span>
+                <!-- All-Day container: ganztägige Termine werden hier als Badges neben dem Label angezeigt -->
+                <div id="dc-allDay" class="dc-all-day-container" aria-live="polite" aria-label="Ganztägige Termine" role="list"></div>
+              </div>
+
+              <div class="day-body" id="dc-dayBody" aria-live="polite"></div>
+            
+              <!-- DEBUG OVERLAY -->
+                          <!-- debug overlay removed -->
+            </div>
+          </div>
+
+          <script>
+            // Ensure calls injected by the template (Jinja) are not lost if they run
+            // before the calendar JS has finished initializing. We provide a tiny
+            // queueing stub that accumulates calls and will be drained after init.
+            window.dashboardDayCalendar = window.dashboardDayCalendar || {
+              _q: [],
+              addEvent: function(){ this._q.push(['addEvent', Array.from(arguments)]); },
+              addEventMinutes: function(){ this._q.push(['addEventMinutes', Array.from(arguments)]); },
+              addAllDay: function(){ this._q.push(['addAllDay', Array.from(arguments)]); },
+              layoutEvents: function(){ /* no-op until ready */ }
+            };
+
+            document.addEventListener('DOMContentLoaded', function(){
+              const startHour = {{ calendar.start_hour | default(7) | int }};
+              const endHour = {{ calendar.end_hour | default(13) | int }}; // last label shown; intervals = endHour - startHour
+              const totalMinutes = (endHour - startHour) * 60; // e.g. 7->13 = 6 hours = 360min
+              const gapPx = 6;
+
+              const timeLabels = document.getElementById('dc-timeLabels');
+              const dayBody = document.getElementById('dc-dayBody');
+
+              // Erzeuge Raster: Labels zeigen Start..End, Slots repräsentieren die Intervalle (end-start)
+              // create labels for each slot (start..end-1) so they align 1:1 with slots
+              for (let h = startHour; h < endHour; h++) {
+                const label = document.createElement('div');
+                label.className = 'dc-time-label';
+                label.textContent = `${h}:00`;
+                timeLabels.appendChild(label);
+              }
+              for (let h = startHour; h < endHour; h++) {
+                const slot = document.createElement('div');
+                slot.className = 'dc-hour-slot';
+                slot.dataset.hour = h;
+                dayBody.appendChild(slot);
+              }
+
+              // set CSS variable for grid rows (used by grid-template-rows)
+              const dayCalEl = document.getElementById('dayCalendar');
+              const slots = Math.max(1, endHour - startHour);
+              if (dayCalEl) dayCalEl.style.setProperty('--slots', slots);
+              // initial layout
+              requestAnimationFrame(layoutEvents);
+
+              // Events container
+              const events = [];
+
+              // All-day events container
+              const allDayEvents = [];
+              const allDayEl = document.getElementById('dc-allDay');
+
+              function renderAllDay() {
+                if (!allDayEl) return;
+                allDayEl.innerHTML = '';
+                for (const ev of allDayEvents) {
+                  const node = document.createElement('div');
+                  node.className = 'dc-all-day-badge';
+                  node.textContent = ev.title;
+                  node.setAttribute('role','listitem');
+                  allDayEl.appendChild(node);
+                }
+              }
+
+              function addAllDay(id, title) {
+                // avoid duplicates by id
+                if (allDayEvents.some(e => e.id === id)) return;
+                allDayEvents.push({ id, title });
+                renderAllDay();
+              }
+
+              function toMinutes(t) {
+                if (!t) return NaN;
+                let s = String(t).trim();
+                const tpos = s.indexOf('T');
+                if (tpos >= 0) s = s.slice(tpos + 1);
+                s = s.split(/[Z\+\-]/)[0];
+                const parts = s.split(':');
+                const hh = Number(parts[0]);
+                const mm = Number(parts[1] || 0);
+                if (!isFinite(hh) || !isFinite(mm)) return NaN;
+                return (hh - startHour) * 60 + mm;
+              }
+
+              function addEvent(id, start, end, title) {
+                const s = toMinutes(start);
+                const e = toMinutes(end);
+                if (!isFinite(s) || !isFinite(e) || e <= s) {
+                  console.warn('skip invalid event', id, start, end, title);
+                  return;
+                }
+                const maxMin = (endHour - startHour) * 60;
+                if (s >= maxMin || e <= 0) return; // fully outside
+                const startMinClamped = Math.max(0, Math.min(s, maxMin));
+                const endMinClamped = Math.max(0, Math.min(e, maxMin));
+                events.push({ id, startMin: startMinClamped, endMin: endMinClamped, title });
+                requestAnimationFrame(layoutEvents);
+              }
+
+              function addEventMinutes(id, startMin, endMin, title) {
+                if (!isFinite(startMin) || !isFinite(endMin) || endMin <= startMin) {
+                  console.warn('skip invalid numeric event', id, startMin, endMin, title);
+                  return;
+                }
+                const maxMin = (endHour - startHour) * 60;
+                if (startMin >= maxMin || endMin <= 0) return; // fully outside
+                const s = Math.max(0, Math.min(startMin, maxMin));
+                const e = Math.max(0, Math.min(endMin, maxMin));
+                events.push({ id, startMin: s, endMin: e, title });
+                requestAnimationFrame(layoutEvents);
+              }
+
+              function buildClusters(sorted) {
+                const clusters = [];
+                let cluster = null;
+                for (const ev of sorted) {
+                  if (!cluster) {
+                    cluster = { events: [ev], endMax: ev.endMin };
+                  } else {
+                    if (ev.startMin < cluster.endMax) {
+                      cluster.events.push(ev);
+                      cluster.endMax = Math.max(cluster.endMax, ev.endMin);
+                    } else {
+                      clusters.push(cluster);
+                      cluster = { events: [ev], endMax: ev.endMin };
+                    }
+                  }
+                }
+                if (cluster) clusters.push(cluster);
+                return clusters;
+              }
+
+              function assignColumns(cluster) {
+                const cols = [];
+                cluster.events.sort((a,b) => a.startMin - b.startMin || (b.endMin - b.startMin) - (a.endMin - a.startMin));
+                for (const ev of cluster.events) {
+                  let placed = false;
+                  for (let i = 0; i < cols.length; i++) {
+                    if (ev.startMin >= cols[i]) {
+                      ev.col = i; cols[i] = ev.endMin; placed = true; break;
+                    }
+                  }
+                  if (!placed) { ev.col = cols.length; cols.push(ev.endMin); }
+                }
+                cluster.colCount = cols.length;
+              }
+
+              function layoutEvents() {
+                dayBody.querySelectorAll('.dc-event').forEach(n => n.remove());
+                if (events.length === 0) return;
+                const sorted = events.slice().sort((a,b) => a.startMin - b.startMin || a.endMin - b.endMin);
+                const clusters = buildClusters(sorted);
+
+                // compute layout using real slot positions (more robust)
+                const slotEls = Array.from(dayBody.querySelectorAll('.dc-hour-slot'));
+                const firstSlot = slotEls[0] || null;
+                const slotHeight = firstSlot ? firstSlot.clientHeight : (dayBody.clientHeight / Math.max(1, (endHour - startHour)));
+                const firstTop = firstSlot ? firstSlot.offsetTop : 0;
+
+                for (const cl of clusters) {
+                  assignColumns(cl);
+                  for (const ev of cl.events) {
+                    const startMin = isFinite(ev.startMin) ? ev.startMin : 0;
+                    const durMin = isFinite(ev.endMin) ? Math.max(ev.endMin - startMin, 1) : 30;
+
+                    // calculate top/height proportional to the visible day-body height
+                    const containerH = dayBody.clientHeight || 1;
+                    const tm = totalMinutes > 0 ? totalMinutes : (endHour - startHour) * 60;
+                    const topPx = Math.round((startMin / tm) * containerH);
+                    const heightPx = Math.max(Math.round((durMin / tm) * containerH), 6);
+
+                    const node = document.createElement('div');
+                    node.className = 'dc-event';
+                    node.textContent = ev.title;
+                    node.style.top = topPx + 'px';
+                    node.style.height = heightPx + 'px';
+
+                    const cols = cl.colCount;
+                    const col = ev.col;
+                    node.style.left = `calc(${(100/cols) * col}% + ${col * (gapPx/2)}px)`;
+                    node.style.width = `calc(${100/cols}% - ${gapPx}px)`;
+                    dayBody.appendChild(node);
+                  }
+                }
+              }
+
+              // recompute on resize
+              let resizeTimer = null;
+              window.addEventListener('resize', () => {
+                if (resizeTimer) clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => requestAnimationFrame(layoutEvents), 120);
+              });
+
+              // Debug overlay updater
+              // debug helpers removed; layoutEvents remains unchanged
+
+              // Expose helper für serverseitige Templates (include numeric minutes variant)
+              // capture any queued calls pushed to the stub before we replace it
+              const __queued_dashboard_calls = (window.dashboardDayCalendar && Array.isArray(window.dashboardDayCalendar._q)) ? window.dashboardDayCalendar._q.slice() : [];
+
+              // install the real implementation
+              window.dashboardDayCalendar = { addEvent, addEventMinutes, addAllDay, layoutEvents };
+
+              // drain saved queued calls (if any)
+              if (__queued_dashboard_calls && __queued_dashboard_calls.length) {
+                for (const item of __queued_dashboard_calls) {
+                  const [fn, args] = item;
+                  try{
+                    if (fn === 'addEvent') window.dashboardDayCalendar.addEvent(...args);
+                    else if (fn === 'addEventMinutes') window.dashboardDayCalendar.addEventMinutes(...args);
+                    else if (fn === 'addAllDay') window.dashboardDayCalendar.addAllDay(...args);
+                  }catch(e){ console.warn('dashboardDayCalendar drain error', e); }
+                }
+              }
+
+              // Beispiel: nur wenn gewünscht (auskommentiert)
+              // addEvent('a','07:30','09:00','Früh-Call');
+              // addEvent('b','08:45','10:15','Meeting');
+            });
+          </script>
+          <!-- Inject server-side calendar.events with numeric minutes (Jinja loop) -->
+          {% if calendar.events %}
+          <script>
+            {% for ev in calendar.events %}
+              {% if ev.is_all_day %}
+                window.dashboardDayCalendar.addAllDay("{{ ev.id }}", "{{ ev.title|e }}");
+              {% elif ev.start_min is not none and ev.end_min is not none %}
+                window.dashboardDayCalendar.addEventMinutes("{{ ev.id }}", {{ ev.start_min }}, {{ ev.end_min }}, "{{ ev.title|e }}");
+              {% endif %}
+            {% endfor %}
+          </script>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="widget">
+        <div class="widget-header">💬 Nachrichten</div>
+        <div class="widget-content">
+          <div class="news-list">
+            {% for item in news %}
+            <div class="news-item">
+                {% if item.image %}
+                  <img class="news-image" src="{{ item.image }}" alt="News Bild" />
+                {% endif %}
+                <div class="news-body">
+                  <h3 class="news-title">{{ item.title }}</h3>
+                  {% if item.description %}
+                    <div class="news-description">{{ item.description }}</div>
+                  {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="news-empty">Keine Nachrichten verfügbar.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    {% if weather %}
+    <div class="weather-widget">
+      <div class="weather-row">
+        <img class="weather-icon" src="{{ weather.icon }}" alt="Wettericon">
+        <span class="weather-temp">{{ weather.temp }}&nbsp;°C</span>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+      <p class="refresh-time">{{ info.location }} {{ info.last_refresh_time }}</p>    
+    </div>
+</div>
+{% endblock %}
