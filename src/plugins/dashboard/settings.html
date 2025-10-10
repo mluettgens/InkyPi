@@ -34,6 +34,13 @@
     <div class="form-help">Gib die Stunden (0–23) an, die im Tageskalender angezeigt werden sollen.</div>
 </div>
 
+<!-- Kalender-Anzahl Tage -->
+<div class="form-group">
+    <label for="calendar_days" class="form-label">Number of calendar days to display:</label>
+    <input type="number" id="calendar_days" name="calendar_days" class="form-input" min="1" max="7" value="1" />
+    <div class="form-help">Anzahl der Tage, die im Kalender angezeigt werden (1 = nur ein Tag, 2 = zwei aufeinanderfolgende Tage, etc.).</div>
+</div>
+
 <!-- Calendar day offset override -->
 <div class="form-group">
     <label for="calendar_day_offset" class="form-label">Kalender-Tag (Automatisch oder erzwingen)</label>
@@ -109,6 +116,9 @@
             }
             if (typeof pluginSettings.calendar_day_offset !== 'undefined') {
                 document.getElementById('calendar_day_offset').value = pluginSettings.calendar_day_offset;
+            }
+            if (typeof pluginSettings.calendar_days !== 'undefined') {
+                document.getElementById('calendar_days').value = pluginSettings.calendar_days;
             }
         }
     });
