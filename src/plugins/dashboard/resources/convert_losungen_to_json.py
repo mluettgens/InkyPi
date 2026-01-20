@@ -1,9 +1,9 @@
 import csv
 import json
 
-# Pfade zu den Quelldateien
-input_path = "src/plugins/dashboard/resources/Losungen Free 2025.txt"
-output_path = "src/plugins/dashboard/resources/losungen.json"
+# Pfade zu den Quelldateien (relativ zum aktuellen Verzeichnis)
+input_path = "Losungen Free 2026.txt"
+output_path = "losungen.json"
 
 # Einlesen und Umwandeln
 
